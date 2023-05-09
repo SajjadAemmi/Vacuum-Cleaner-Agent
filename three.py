@@ -54,7 +54,6 @@ def doOperation(state, Operation):
     elif Operation == "C":
         row = nextState.position[0]
         col = nextState.position[1]
-
         nextState.world[row][col] = 1
 
     row = nextState.position[0]
