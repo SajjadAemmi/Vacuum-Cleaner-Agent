@@ -5,16 +5,13 @@
 
 Vacuum Cleaner Agent with Python
 
-A smart agent that cleans rooms
+A smart agent that cleans rooms. Size of the world is 10 * 10. Agent can move Up, Down, Left, Right and suction dust.
 
-size of world is 10 * 10
-
-Agent can move Up, Down, Left, Right and suction dust
-
+## Run
+```
+python3 main.py --mode all
+```
 3 modes:
-
-Mode 1: The agent can sense Clean or dirty of his room
-
-Mode 2: The agent can sense Clean or dirty of his room and neighbor rooms
-
-Mode 3: The agent can sense Clean or dirty of all rooms
+- one: The agent can sense Clean or dirty of his room
+- three: The agent can sense Clean or dirty of his room and neighbor rooms
+- all: The agent can sense Clean or dirty of all rooms

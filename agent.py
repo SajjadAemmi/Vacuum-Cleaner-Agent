@@ -1,76 +1,79 @@
 import copy
+from queue import Queue
 from operator import attrgetter
+import numpy as np
+import matplotlib.pyplot as plt
 from node import Node
 
 
 class Agent:
-    def __init__(self, input, mode):
-        self.Queue = []
-        self.VisitedStates = []
-        self.Operations = ["U", "D", "R", "L", "C", "O"]
+    def __init__(self, mode, input_file, show):
+        self.mode = mode
+        self.show = show
+        self.queue = []
+        self.visited_states = []
+        self.operations = ["U", "D", "R", "L", "C", "O"]
         self.Moves = []
-        self.PerformanceMeasure = 0
+        self.performance = 0
 
         self.root = Node()
 
-        f = open(input)
+        f = open(input_file, "r", encoding="utf-8")
         lines = f.read().split('\n')
         for i in range(10):
             cells = lines[i].split(' ')
             for j in range(10):
-                self.root.world[i][j] = int(cells[j])
+                self.root.world[i, j] = int(cells[j])
 
-        self.root.know_world[0][0] = self.root.world[0][0]
-        self.root.position = [0, 0]
+        assert mode in ["one", "three", "all"], "Invalid mode, must be one, three or all"
+        if mode == "one":
+            self.root.know_world[0, 0] = self.root.world[0, 0]
+        elif mode == "three":
+            self.root.know_world[0][0] = self.root.world[0][0]
+            self.root.know_world[0][1] = self.root.world[0][1]
+            self.root.know_world[1][0] = self.root.world[1][0]
+            self.root.know_world[1][1] = self.root.world[1][1]
+        elif mode == "all":
+            self.root.know_world = self.root.world
 
+        self.root.pos = [0, 0]
         self.root.f = self.heuristic(self.root)
-        self.Queue.append(self.root)
-        visited_state = {"world": self.root.world[:], "position": self.root.position[:]}
-        self.VisitedStates.append(visited_state)
-        self.root.operations = self.GBFSTree()
-        self.solve(self.root)
+        self.queue.append(self.root)
+        visited_state = Node(world=self.root.world, pos=self.root.pos)
+        self.visited_states.append(visited_state)
 
-    def isGoal(self, state):
-        if state.know_world == [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-                                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]:
+    def is_goal(self, state):
+        if np.array_equal(state.know_world, np.ones((10, 10), dtype=int)):
             return True
         else:
             return False
 
-    def doOperation(self, state, Operation):
-        nextState = copy.deepcopy(state)
+    def do_operation(self, state, operation):
+        next_state = copy.deepcopy(state)
+        
+        if operation == "U":
+            next_state.pos[0] -= 1
 
-        if Operation == "U":
-            nextState.position[0] -= 1
+        elif operation == "D":
+            next_state.pos[0] += 1
 
-        elif Operation == "D":
-            nextState.position[0] += 1
+        elif operation == "L":
+            next_state.pos[1] -= 1
 
-        elif Operation == "L":
-            nextState.position[1] -= 1
+        elif operation == "R":
+            next_state.pos[1] += 1
 
-        elif Operation == "R":
-            nextState.position[1] += 1
+        elif operation == "C":
+            row = next_state.pos[0]
+            col = next_state.pos[1]
+            next_state.world[row][col] = 1
 
-        elif Operation == "C":
-            row = nextState.position[0]
-            col = nextState.position[1]
-            nextState.world[row][col] = 1
+        row = next_state.pos[0]
+        col = next_state.pos[1]
 
-        row = nextState.position[0]
-        col = nextState.position[1]
+        next_state.know_world[row][col] = next_state.world[row][col]
 
-        nextState.know_world[row][col] = nextState.world[row][col]
-
-        return nextState.world, nextState.know_world, nextState.position
+        return next_state.world, next_state.know_world, next_state.pos
 
     def heuristic(self, state):
         counter = 0
@@ -81,51 +84,50 @@ class Agent:
 
         return counter
 
-    def makeChild(self, parentState, Operation):
-        childState = copy.deepcopy(parentState)
-        childState.world, childState.know_world, childState.position = self.doOperation(
-            parentState, Operation)
+    def make_child(self, parent_state, operation):
+        child_state = copy.deepcopy(parent_state)
+        child_state.world, child_state.know_world, child_state.pos = self.do_operation(
+            parent_state, operation)
 
-        state = {"world": childState.world[:], "position": childState.position[:]}
+        state = Node(world=child_state.world, pos=child_state.pos)
 
-        if state not in self.VisitedStates:
-            childState.deep = parentState.deep + 1
-            childState.h = self.heuristic(childState)
-            childState.f = childState.h
-            childState.operations = parentState.operations[:]
-            childState.operations.append(Operation)
-            self.Queue.append(childState)
-            visited_state = {
-                "world": childState.world[:], "position": childState.position[:]}
-            self.VisitedStates.append(visited_state)
+        if state not in self.visited_states:
+            child_state.deep = parent_state.deep + 1
+            child_state.h = self.heuristic(child_state)
+            child_state.f = child_state.h
+            child_state.operations = parent_state.operations[:]
+            child_state.operations.append(operation)
+            self.queue.append(child_state)
+            visited_state = Node(world=child_state.world, pos=child_state.pos)
+            self.visited_states.append(visited_state)
         else:
-            for state in self.Queue:
-                if state.world == childState.world and state.know_world == childState.know_world and state.position == childState.position and state.f > childState.f:
-                    state.f = childState.f + 0
-                    state.deep = childState.deep + 0
+            for state in self.queue:
+                if state.world == child_state.world and state.know_world == child_state.know_world and state.pos == child_state.pos and state.f > child_state.f:
+                    state.f = child_state.f + 0
+                    state.deep = child_state.deep + 0
                     break
 
-    def isOperationPossible(self, state, Operation):
-        if Operation == "U":
-            if state.position[0] > 0:
+    def is_operation_possible(self, state, operation):
+        if operation == "U":
+            if state.pos[0] > 0:
                 return True
             else:
                 return False
 
-        elif Operation == "D":
-            if state.position[0] < 9:
+        elif operation == "D":
+            if state.pos[0] < 9:
                 return True
             else:
                 return False
 
-        elif Operation == "L":
-            if state.position[1] > 0:
+        elif operation == "L":
+            if state.pos[1] > 0:
                 return True
             else:
                 return False
 
-        elif Operation == "R":
-            if state.position[1] < 9:
+        elif operation == "R":
+            if state.pos[1] < 9:
                 return True
             else:
                 return False
@@ -133,51 +135,57 @@ class Agent:
         return True
 
     def GBFSTree(self):
-        thisState = min(self.Queue, key=attrgetter('f'))
+        this_state = min(self.queue, key=attrgetter('f'))
+        if self.show:
+            fig, ax = plt.subplots()
+            ax.imshow(this_state.world, extent=[0, 1, 0, 1])
 
-        while self.isGoal(thisState) != True:
-            for Operation in self.Operations:
-                if self.isOperationPossible(thisState, Operation):
-                    self.makeChild(thisState, Operation)
+        while self.is_goal(this_state) != True:
+            for operation in self.operations:
+                if self.is_operation_possible(this_state, operation):
+                    self.make_child(this_state, operation)
 
-            self.Queue.remove(thisState)
-            thisState = min(self.Queue, key=attrgetter('f'))
+            self.queue.remove(this_state)
+            this_state = min(self.queue, key=attrgetter('f'))
+            if self.show:
+                ax.imshow(this_state.world)
+                ax.scatter(this_state.pos[1], this_state.pos[0], s=100)
+                plt.pause(0.01)
+                ax.clear()
 
-        print(thisState.operations)
-        return thisState.operations
+        print(this_state.operations)
+        self.root.operations = this_state.operations
 
-    def solve(self, state):
-        for Operation in state.operations:
+    def run(self):
+        state = self.root
+        for operation in state.operations:
             for i in range(10):
                 for j in range(10):
                     if state.world[i][j] == 0:
-                        PerformanceMeasure -= 1
+                        self.performance -= 1
 
-            if Operation == "U":
-                state.position[0] -= 1
-                PerformanceMeasure -= 10
+            if operation == "U":
+                state.pos[0] -= 1
+                self.performance -= 10
 
-            elif Operation == "D":
-                state.position[0] += 1
-                PerformanceMeasure -= 10
+            elif operation == "D":
+                state.pos[0] += 1
+                self.performance -= 10
 
-            elif Operation == "R":
-                state.position[1] += 1
-                PerformanceMeasure -= 10
+            elif operation == "R":
+                state.pos[1] += 1
+                self.performance -= 10
 
-            elif Operation == "L":
-                state.position[1] -= 1
-                PerformanceMeasure -= 10
+            elif operation == "L":
+                state.pos[1] -= 1
+                self.performance -= 10
 
-            elif Operation == "C":
-                PerformanceMeasure -= 15
-
-                row = state.position[0]
-                col = state.position[1]
-
+            elif operation == "C":
+                self.performance -= 15
+                row = state.pos[0]
+                col = state.pos[1]
                 if state.world[row][col] == 0:
-                    PerformanceMeasure += 100
-
+                    self.performance += 100
                 state.world[row][col] = 1
 
-        print("PerformanceMeasure:", PerformanceMeasure)
+        print("performance:", self.performance)
