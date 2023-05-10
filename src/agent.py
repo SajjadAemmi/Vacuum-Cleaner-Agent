@@ -1,8 +1,7 @@
 import copy
 from operator import attrgetter
-import numpy as np
 import matplotlib.pyplot as plt
-from node import Node
+from src.node import Node
 
 
 class Agent:

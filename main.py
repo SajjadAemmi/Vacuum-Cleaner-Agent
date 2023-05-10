@@ -1,5 +1,5 @@
 import argparse
-from agent import Agent
+from src.agent import Agent
 
 
 parser = argparse.ArgumentParser("Vacuum Cleaner Agent", formatter_class=argparse.RawTextHelpFormatter)

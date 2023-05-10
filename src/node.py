@@ -3,12 +3,12 @@ import numpy as np
 
 class Node(object):
     def __init__(self,
-                 pos=[],
+                 pos=None,
                  world=np.zeros((10, 10), dtype=int),
                  known_world=np.ones((10, 10), dtype=int) * -1,
                  f=0,
                  h=0,
-                 operations=[]):
+                 operations=None):
         self.pos = pos
         self.world = world
         self.known_world = known_world
