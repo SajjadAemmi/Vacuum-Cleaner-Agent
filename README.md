@@ -5,7 +5,7 @@
 
 Vacuum Cleaner Agent with Python
 
-A smart agent that cleans rooms. Size of the world is 10 * 10. Agent can move Up, Down, Left, Right and suction dust.
+A smart agent that cleans rooms. Size of the world is `10x10`. Agent can move Up, Down, Left, Right and suction dust.
 
 ![image](image.png)
 
