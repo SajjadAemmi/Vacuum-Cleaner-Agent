@@ -34,8 +34,7 @@ class Agent:
         self.root.pos = [0, 0]
         self.root.f = self.root.heuristic()
         self.queue.append(self.root)
-        visited_state = {"world": self.root.world.tolist(),
-                         "pos": self.root.pos}
+        visited_state = {"world": self.root.world.tolist(), "pos": self.root.pos}
         self.visited_states.append(visited_state)
 
     def do_operation(self, state, operation):
