@@ -10,9 +10,8 @@ class Agent:
         self.show = show
         self.queue = []
         self.visited_states = []
-        self.operations = ["U", "D", "R", "L", "C", "O"]
         self.performance = 0
-
+        self.operations = ["U", "D", "R", "L", "C", "O"]
         self.root = Node()
 
         f = open(input_file, "r", encoding="utf-8")
@@ -72,7 +71,7 @@ class Agent:
         if state not in self.visited_states:
             child_state.h = child_state.heuristic()
             child_state.f = child_state.h
-            child_state.operations = parent_state.operations[:]
+            child_state.operations = parent_state.operations
             child_state.operations.append(operation)
             self.queue.append(child_state)
             visited_state = {
