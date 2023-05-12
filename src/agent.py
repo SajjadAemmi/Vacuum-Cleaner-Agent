@@ -5,7 +5,7 @@ from src.node import Node
 
 
 class Agent:
-    def __init__(self, mode, input_file, show):
+    def __init__(self, mode, input_file, show=False):
         self.mode = mode
         self.show = show
         self.queue = []
@@ -21,12 +21,12 @@ class Agent:
             for j in range(10):
                 self.root.world[i, j] = int(cells[j])
 
-        assert mode in ["one", "three", "all"], "Invalid value, mode must be one, three or all"
-        if mode == "one":
+        assert mode in ["one", "nine", "all"], "Invalid value, mode must be one, nine or all"
+        if self.mode == "one":
             self.root.known_world[0, 0] = self.root.world[0, 0]
-        elif mode == "three":
+        elif self.mode == "nine":
             self.root.known_world[0:2, 0:2] = self.root.world[0:2, 0:2]
-        elif mode == "all":
+        elif self.mode == "all":
             self.root.known_world = self.root.world
 
         self.root.pos = [0, 0]
@@ -58,7 +58,17 @@ class Agent:
         row = next_state.pos[0]
         col = next_state.pos[1]
 
-        next_state.known_world[row, col] = next_state.world[row, col]
+        if self.mode == "one":
+            next_state.known_world[row, col] = next_state.world[row, col]
+        elif self.mode == "nine":
+            min_row = max(0, row-1)
+            max_row = min(9, row+1)
+            min_col = max(0, col-1)
+            max_col = min(9, col+1)
+            next_state.known_world[min_row:max_row+1, min_col:max_col+1] = next_state.world[min_row:max_row+1, min_col:max_col+1]
+        elif self.mode == "all":
+            next_state.known_world = next_state.world
+
         return next_state.world, next_state.known_world, next_state.pos
 
     def make_child(self, parent_state, operation):
@@ -71,27 +81,26 @@ class Agent:
         if state not in self.visited_states:
             child_state.h = child_state.heuristic()
             child_state.f = child_state.h
-            child_state.operations = parent_state.operations
+            child_state.operations = copy.deepcopy(parent_state.operations)
             child_state.operations.append(operation)
             self.queue.append(child_state)
-            visited_state = {
-                "world": child_state.world.tolist(), "pos": child_state.pos}
+            visited_state = {"world": child_state.world.tolist(), "pos": child_state.pos}
             self.visited_states.append(visited_state)
         else:
             for state in self.queue:
                 if state.world.tolist() == child_state.world.tolist() and state.known_world.tolist() == child_state.known_world.tolist() and state.pos == child_state.pos and state.f > child_state.f:
                     state.f = child_state.f
 
-    def is_operation_possible(self, state, operation):
-        if operation == "U" and state.pos[0] > 0:
+    def is_operation_possible(self, state, operation) -> bool:
+        if operation == "C" or operation == "O":
+            return True
+        elif operation == "U" and state.pos[0] > 0:
             return True
         elif operation == "D" and state.pos[0] < 9:
             return True
         elif operation == "L" and state.pos[1] > 0:
             return True
         elif operation == "R" and state.pos[1] < 9:
-            return True
-        elif operation == "C" or operation == "O":
             return True
         else:
             return False
@@ -121,9 +130,7 @@ class Agent:
                 ax2.clear()
 
         self.root.operations = this_state.operations
-        replacements = {"U": "⬆️", "D": "⬇️", "R": "➡️", "L": "⬅️", "C": "🧹"}
-        replacer = replacements.get  # For faster gets.
-        print([replacer(n, n) for n in self.root.operations])
+        return self.root.operations
 
     def run(self):
         for operation in self.root.operations:
@@ -152,8 +159,8 @@ class Agent:
                 self.performance -= 15
                 row = self.root.pos[0]
                 col = self.root.pos[1]
-                if self.root.world[row][col] == 1:
+                if self.root.world[row, col] == 1:
                     self.performance += 100
-                self.root.world[row][col] = 0
+                self.root.world[row, col] = 0
 
         print("performance:", self.performance)

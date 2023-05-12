@@ -18,5 +18,5 @@ python3 main.py --mode one --input maps/map1.txt --show
 ```
 3 modes:
 - one: The agent can sense Clean or dirty of his room
-- three: The agent can sense Clean or dirty of his room and neighbor rooms
+- nine: The agent can sense Clean or dirty of his room and neighbor rooms
 - all: The agent can sense Clean or dirty of all rooms
