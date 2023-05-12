@@ -1,166 +1,108 @@
 import copy
 from operator import attrgetter
+import numpy as np
 import matplotlib.pyplot as plt
 from src.node import Node
 
 
 class Agent:
-    def __init__(self, mode, input_file, show=False):
+    def __init__(self, mode, method, input_file, show=False):
+        assert mode in ["one", "nine", "all"], "Invalid value, mode must be one, nine or all"
         self.mode = mode
+        print("Mode:", self.mode)
+        assert method in ["GBFS", "A*"], "Invalid value, method must be GBFS or A*"
+        self.method = method
+        print("Method:", self.method)
         self.show = show
         self.queue = []
         self.visited_states = []
-        self.performance = 0
         self.operations = ["U", "D", "R", "L", "C", "O"]
+
         self.root = Node()
+        with open(input_file, "r", encoding="utf-8") as f:
+            lines = f.read().split('\n')
+            for i in range(10):
+                cells = lines[i].split(' ')
+                for j in range(10):
+                    self.root.rooms[i, j] = int(cells[j])
 
-        f = open(input_file, "r", encoding="utf-8")
-        lines = f.read().split('\n')
-        for i in range(10):
-            cells = lines[i].split(' ')
-            for j in range(10):
-                self.root.world[i, j] = int(cells[j])
+    def make_child(self, parent_node, operation):
+        child_node = copy.deepcopy(parent_node)
+        child_node.do_operation(operation)
+        child_node.update_known_rooms(self.mode)
 
-        assert mode in ["one", "nine", "all"], "Invalid value, mode must be one, nine or all"
-        if self.mode == "one":
-            self.root.known_world[0, 0] = self.root.world[0, 0]
-        elif self.mode == "nine":
-            self.root.known_world[0:2, 0:2] = self.root.world[0:2, 0:2]
-        elif self.mode == "all":
-            self.root.known_world = self.root.world
+        state = {"rooms": child_node.rooms.tolist(), "pos": child_node.pos}
+        if state not in self.visited_states:
+            child_node.calc_f(self.method)
+            self.queue.append(child_node)
+            self.visited_states.append(state)
+        else:
+            for node in self.queue:
+                if node.rooms.tolist() == child_node.rooms.tolist() and node.pos == child_node.pos and node.f > child_node.f:
+                    node.f = child_node.f
 
+    def think(self):
         self.root.pos = [0, 0]
-        self.root.f = self.root.heuristic()
+        self.root.update_known_rooms(self.mode)
+        self.root.calc_f(self.method)
         self.queue.append(self.root)
-        visited_state = {"world": self.root.world.tolist(), "pos": self.root.pos}
+        visited_state = {"rooms": self.root.rooms.tolist(), "pos": self.root.pos}
         self.visited_states.append(visited_state)
 
-    def do_operation(self, state, operation):
-        next_state = copy.deepcopy(state)
-
-        if operation == "U":
-            next_state.pos[0] -= 1
-
-        elif operation == "D":
-            next_state.pos[0] += 1
-
-        elif operation == "L":
-            next_state.pos[1] -= 1
-
-        elif operation == "R":
-            next_state.pos[1] += 1
-
-        elif operation == "C":
-            row = next_state.pos[0]
-            col = next_state.pos[1]
-            next_state.world[row, col] = 0
-
-        row = next_state.pos[0]
-        col = next_state.pos[1]
-
-        if self.mode == "one":
-            next_state.known_world[row, col] = next_state.world[row, col]
-        elif self.mode == "nine":
-            min_row = max(0, row-1)
-            max_row = min(9, row+1)
-            min_col = max(0, col-1)
-            max_col = min(9, col+1)
-            next_state.known_world[min_row:max_row+1, min_col:max_col+1] = next_state.world[min_row:max_row+1, min_col:max_col+1]
-        elif self.mode == "all":
-            next_state.known_world = next_state.world
-
-        return next_state.world, next_state.known_world, next_state.pos
-
-    def make_child(self, parent_state, operation):
-        child_state = copy.deepcopy(parent_state)
-        child_state.world, child_state.known_world, child_state.pos = self.do_operation(
-            parent_state, operation)
-
-        state = {"world": child_state.world.tolist(), "pos": child_state.pos}
-
-        if state not in self.visited_states:
-            child_state.h = child_state.heuristic()
-            child_state.f = child_state.h
-            child_state.operations = copy.deepcopy(parent_state.operations)
-            child_state.operations.append(operation)
-            self.queue.append(child_state)
-            visited_state = {"world": child_state.world.tolist(), "pos": child_state.pos}
-            self.visited_states.append(visited_state)
-        else:
-            for state in self.queue:
-                if state.world.tolist() == child_state.world.tolist() and state.known_world.tolist() == child_state.known_world.tolist() and state.pos == child_state.pos and state.f > child_state.f:
-                    state.f = child_state.f
-
-    def is_operation_possible(self, state, operation) -> bool:
-        if operation == "C" or operation == "O":
-            return True
-        elif operation == "U" and state.pos[0] > 0:
-            return True
-        elif operation == "D" and state.pos[0] < 9:
-            return True
-        elif operation == "L" and state.pos[1] > 0:
-            return True
-        elif operation == "R" and state.pos[1] < 9:
-            return True
-        else:
-            return False
-
-    def solve(self):
-        # GBFS Algorithm
-        this_state = min(self.queue, key=attrgetter('f'))
         if self.show:
             _, (ax1, ax2) = plt.subplots(1, 2)
-            ax1.imshow(this_state.world)
-            ax2.imshow(this_state.known_world)
+   
+        while True:
+            node = min(self.queue, key=attrgetter('f'))
+            if node.is_goal():
+                break
 
-        while not this_state.is_goal():
-            for operation in self.operations:
-                if self.is_operation_possible(this_state, operation):
-                    self.make_child(this_state, operation)
-
-            self.queue.remove(this_state)
-            this_state = min(self.queue, key=attrgetter('f'))
             if self.show:
-                ax1.imshow(this_state.world)
-                ax1.scatter(this_state.pos[1], this_state.pos[0], s=100)
-                ax2.imshow(this_state.known_world)
-                ax2.scatter(this_state.pos[1], this_state.pos[0], s=100)
-                plt.pause(0.01)
-                ax1.clear()
-                ax2.clear()
+                self.show_rooms(node, ax1, ax2)
 
-        self.root.operations = this_state.operations
+            for operation in self.operations:
+                if node.is_operation_possible(operation):
+                    self.make_child(node, operation)
+
+            self.queue.remove(node)
+        
+        self.root.operations = node.operations
         return self.root.operations
 
     def run(self):
         for operation in self.root.operations:
-            for i in range(10):
-                for j in range(10):
-                    if self.root.world[i, j] == 1:
-                        self.performance -= 1
+            self.root.performance -= np.count_nonzero(self.root.rooms)
 
             if operation == "U":
                 self.root.pos[0] -= 1
-                self.performance -= 10
+                self.root.performance -= 10
 
             elif operation == "D":
                 self.root.pos[0] += 1
-                self.performance -= 10
+                self.root.performance -= 10
 
             elif operation == "R":
                 self.root.pos[1] += 1
-                self.performance -= 10
+                self.root.performance -= 10
 
             elif operation == "L":
                 self.root.pos[1] -= 1
-                self.performance -= 10
+                self.root.performance -= 10
 
             elif operation == "C":
-                self.performance -= 15
-                row = self.root.pos[0]
-                col = self.root.pos[1]
-                if self.root.world[row, col] == 1:
-                    self.performance += 100
-                self.root.world[row, col] = 0
+                self.root.performance -= 15
+                row, col = self.root.pos
+                if self.root.rooms[row, col] == 1:
+                    self.root.rooms[row, col] = 0
+                    self.root.performance += 100
 
-        print("performance:", self.performance)
+        print("performance:", self.root.performance)
+
+    def show_rooms(self, node, ax1, ax2):
+        ax1.imshow(node.rooms)
+        ax1.scatter(node.pos[1], node.pos[0], s=100)
+        ax2.imshow(node.known_rooms)
+        ax2.scatter(node.pos[1], node.pos[0], s=100)
+        plt.pause(0.01)
+        ax1.clear()
+        ax2.clear()
